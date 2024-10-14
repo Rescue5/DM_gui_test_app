@@ -1,0 +1,3 @@
+([('gui',
+   '/Users/macbook/Documents/работа/Propeller_test_log/dist/gui',
+   'EXECUTABLE')],)
