@@ -19,6 +19,11 @@ command_queue = queue.Queue()
 lock = threading.Lock()  # Для синхронизации доступа к сериалу
 test_running = threading.Event()
 
+# Переменные для отображения текущих значений
+# current_moment_var = None
+# current_thrust_var = None
+# current_rpm_var = None
+
 
 count = 0
 previous_rpm = []  # Для хранения значений RPM предыдущей скорости
@@ -55,6 +60,7 @@ def parse_and_save_to_csv(data):
     global current_rpm, previous_rpm, current_speed, previous_speed
     global current_avg_rpm, previous_avg_rpm, rpm_count
     global test_target_speed, progress_complete
+    # global current_moment_var, current_thrust_var, current_rpm_var
 
     if data.startswith("Speed set to:"):
         parts = data.split(":")
@@ -94,6 +100,14 @@ def parse_and_save_to_csv(data):
             else:
                 log_to_console("Неизвестный тип стенда.")
                 return
+
+            # Обновляем отображаемые значения
+            # if moment is not None:
+            #     current_moment_var = tk.StringVar(value="Момент: --")
+            # if thrust is not None:
+            #     current_thrust_var = tk.StringVar(value="Тяга: --")
+            # if rpm is not None:
+            #     current_rpm_var = tk.StringVar(value="RPM: --")
 
             # Проверяем, существует ли файл CSV
             write_headers = False
@@ -601,6 +615,20 @@ progress_var = tk.DoubleVar()
 progress_bar = ttk.Progressbar(
     progress_frame, variable=progress_var, maximum=100)
 progress_bar.pack(fill='x', padx=10, pady=5)
+
+# Добавляем новый фрейм для отображения момента, тяги и RPM (Новый код)
+# info_frame = tk.LabelFrame(main_frame, text="Текущие значения")
+# info_frame.grid(row=2, column=2, padx=0, pady=0, sticky='n')
+#
+# moment_label = tk.Label(info_frame, textvariable=current_moment_var)
+# moment_label.pack(anchor='w', padx=10, pady=5)
+#
+# thrust_label = tk.Label(info_frame, textvariable=current_thrust_var)
+# thrust_label.pack(anchor='w', padx=10, pady=5)
+#
+# rpm_label = tk.Label(info_frame, textvariable=current_rpm_var)
+# rpm_label.pack(anchor='w', padx=10, pady=5)
+
 
 # Настройки COM-портов
 com_frame = tk.Frame(main_frame)
