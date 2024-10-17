@@ -715,7 +715,7 @@ start_freeze_button = tk.Button(
 start_freeze_button.grid(row=1, column=0, padx=10, pady=5)
 
 stop_freeze_button = tk.Button(
-    button_frame, text="Остановить охлаждение", command=stop_freeze)
+    button_frame, text="Остановить охлаждение", command=stop_test)
 stop_freeze_button.grid(row=1, column=1, padx=10, pady=5)
 
 # Инструкция пользователю
