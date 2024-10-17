@@ -19,11 +19,6 @@ command_queue = queue.Queue()
 lock = threading.Lock()  # Для синхронизации доступа к сериалу
 test_running = threading.Event()
 
-# Переменные для отображения текущих значений
-# current_moment_var = None
-# current_thrust_var = None
-# current_rpm_var = None
-
 
 count = 0
 previous_rpm = []  # Для хранения значений RPM предыдущей скорости
@@ -574,12 +569,24 @@ root.set_theme("arc")  # Устанавливаем желаемую тему
 
 root.title("Тестирование")
 
+# Создаем вкладки
+notebook = ttk.Notebook(root)
+notebook.pack(expand=True, fill=tk.BOTH)
+
+# Вкладка с тестом
+test_frame = tk.Frame(notebook)
+notebook.add(test_frame, text="Тест")
+
+# Вкладка с настройками
+settings_frame = tk.Frame(notebook)
+notebook.add(settings_frame, text="Настройки")
+
 # Создаем основную рамку для размещения элементов
 main_frame = tk.Frame(root, padx=10, pady=10)
 main_frame.pack(expand=True, fill=tk.BOTH)
 
-# Поля для ввода названия двигателя и пропеллера
-input_frame = tk.Frame(main_frame)
+# Поля для ввода названия двигателя и пропеллера в тестовой вкладке
+input_frame = tk.Frame(test_frame)
 input_frame.grid(row=0, column=0, columnspan=2, pady=(0, 10), sticky='ew')
 
 engine_name_label = tk.Label(input_frame, text="Название двигателя:")
@@ -592,31 +599,27 @@ propeller_name_label.grid(row=1, column=0, padx=10, pady=5, sticky='w')
 propeller_name_entry = tk.Entry(input_frame)
 propeller_name_entry.grid(row=1, column=1, padx=10, pady=5, sticky='ew')
 
-# Загрузка и настройка изображения
+# Лого в тестовой вкладке
 try:
     image = Image.open("dron_motors.png")  # Загрузите изображение
-    # Уменьшите размер до 250x100 пикселей
     image = image.resize((250, 100), Image.Resampling.LANCZOS)
     logo_photo = ImageTk.PhotoImage(image)
-    # Добавление лого компании справа от полей ввода
-    logo_label = tk.Label(main_frame, image=logo_photo)
+    logo_label = tk.Label(test_frame, image=logo_photo)
     logo_label.grid(row=0, column=2, rowspan=2, padx=10, pady=5, sticky='n')
 except FileNotFoundError:
-    log_to_console("Изображение 'dron_motors.png' не найдено.")
+    print("Изображение 'dron_motors.png' не найдено.")
 
-input_frame.columnconfigure(1, weight=1)  # Позволяет полям ввода растягиваться
+input_frame.columnconfigure(1, weight=1)
 
-# Добавление ползунка для выбора процентов скорости
-speed_percent_label = tk.Label(main_frame, text="Процент разгона:")
+# Ползунок для теста
+speed_percent_label = tk.Label(test_frame, text="Процент разгона:")
 speed_percent_label.grid(row=1, column=0, padx=10, pady=5, sticky='w')
-
-# Ползунок для выбора значений от 10 до 100 с шагом 10
-speed_percent_slider = tk.Scale(main_frame, from_=10, to=100,
+speed_percent_slider = tk.Scale(test_frame, from_=10, to=100,
                                 orient=tk.HORIZONTAL, length=300, resolution=10, tickinterval=10)
 speed_percent_slider.grid(row=1, column=1, padx=10, pady=5, sticky='ew')
 
-# Добавление прогресс-бара и метки
-progress_frame = tk.Frame(main_frame)
+# Прогресс бар и метка
+progress_frame = tk.Frame(test_frame)
 progress_frame.grid(row=2, column=0, columnspan=2, pady=(10, 10), sticky='ew')
 
 progress_label = tk.Label(progress_frame, text="Прогресс: 0%")
@@ -627,22 +630,9 @@ progress_bar = ttk.Progressbar(
     progress_frame, variable=progress_var, maximum=100)
 progress_bar.pack(fill='x', padx=10, pady=5)
 
-# Добавляем новый фрейм для отображения момента, тяги и RPM (Новый код)
-# info_frame = tk.LabelFrame(main_frame, text="Текущие значения")
-# info_frame.grid(row=2, column=2, padx=0, pady=0, sticky='n')
-#
-# moment_label = tk.Label(info_frame, textvariable=current_moment_var)
-# moment_label.pack(anchor='w', padx=10, pady=5)
-#
-# thrust_label = tk.Label(info_frame, textvariable=current_thrust_var)
-# thrust_label.pack(anchor='w', padx=10, pady=5)
-#
-# rpm_label = tk.Label(info_frame, textvariable=current_rpm_var)
-# rpm_label.pack(anchor='w', padx=10, pady=5)
 
-
-# Настройки COM-портов
-com_frame = tk.Frame(main_frame)
+# Настройки COM-порта в тестовой вкладке
+com_frame = tk.Frame(test_frame)
 com_frame.grid(row=3, column=0, pady=10, sticky='w')
 
 com_port_label = tk.Label(com_frame, text="Выберите COM-порт:")
@@ -653,29 +643,22 @@ com_port_combobox = ttk.Combobox(com_frame, values=com_ports)
 com_port_combobox.set("Выберите COM-порт")
 com_port_combobox.grid(row=0, column=1, padx=10, pady=5, sticky='ew')
 
-com_frame.columnconfigure(1, weight=1)  # Позволяет комбобоксу растягиваться
+com_frame.columnconfigure(1, weight=1)
 
 # Новый фрейм для кнопок "Подключение к стенду" и "Информация о стенде"
-connect_info_frame = tk.Frame(main_frame)
-# Размещаем справа от com_frame
+connect_info_frame = tk.Frame(test_frame)
 connect_info_frame.grid(row=3, column=1, padx=10, pady=10, sticky='e')
 
-# Кнопка "Подключение к стенду"
 connect_button = tk.Button(
     connect_info_frame, text="Подключение к стенду", command=connect_to_arduino)
 connect_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-# Кнопка "Информация о стенде"
-info_button = tk.Button(connect_info_frame, text="Информация о стенде",
-                        command=lambda: command_queue.put("INFO"))
+info_button = tk.Button(
+    connect_info_frame, text="Информация о стенде", command=lambda: command_queue.put("INFO"))
 info_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-# Новый фрейм для настроек (PULSE_THRESHOLD, MOMENT_TENZ, THRUST_TENZ)
-settings_frame = tk.LabelFrame(main_frame, text="Настройки")
-settings_frame.grid(row=4, column=0, columnspan=3,
-                    pady=10, sticky='ew', padx=10)
 
-# PULSE_THRESHOLD
+# Настройки на вкладке "Настройки"
 pulse_threshold_label = tk.Label(
     settings_frame, text="Колличество пульсов\nна 10 оборотов\n(70 по умлочанию)")
 pulse_threshold_label.grid(row=0, column=0, padx=10, pady=5, sticky='e')
@@ -685,7 +668,7 @@ pulse_threshold_button = tk.Button(
     settings_frame, text="Отправить", command=send_pulse_threshold)
 pulse_threshold_button.grid(row=0, column=2, padx=10, pady=5)
 
-# MOMENT_TENZ
+
 moment_tenz_label = tk.Label(
     settings_frame, text="Коэффициент момента\n(1 по умолчанию)")
 moment_tenz_label.grid(row=1, column=0, padx=10, pady=5, sticky='e')
@@ -695,7 +678,7 @@ moment_tenz_button = tk.Button(
     settings_frame, text="Отправить", command=send_moment_tenz)
 moment_tenz_button.grid(row=1, column=2, padx=10, pady=5)
 
-# THRUST_TENZ
+
 thrust_tenz_label = tk.Label(
     settings_frame, text="Коэффициент тяги\n(1 по умолчанию)")
 thrust_tenz_label.grid(row=2, column=0, padx=10, pady=5, sticky='e')
@@ -704,6 +687,7 @@ thrust_tenz_entry.grid(row=2, column=1, padx=10, pady=5, sticky='ew')
 thrust_tenz_button = tk.Button(
     settings_frame, text="Отправить", command=send_thrust_tenz)
 thrust_tenz_button.grid(row=2, column=2, padx=10, pady=5)
+
 
 # Позволяет полю ввода растягиваться
 settings_frame.columnconfigure(1, weight=1)
