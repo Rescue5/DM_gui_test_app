@@ -97,6 +97,13 @@ def parse_and_save_to_csv(data):
                 else:
                     log_to_console("Недостаточно данных для момента: " + data)
                     return
+            elif stand_name == "шпиндель":
+                if len(parts) >= 8:
+                    moment = float(parts[3].strip())
+                    thrust = float(parts[5].strip())
+                    rpm = int(parts[7].strip())
+                else:
+                    log_to_console("Недостаточно данных для шпинделя: " + data)
             else:
                 log_to_console("Неизвестный тип стенда.")
                 return
@@ -129,10 +136,15 @@ def parse_and_save_to_csv(data):
                             elif stand_name == "момент":
                                 csv_writer.writerow(
                                     ["Speed", "Moment", "Thrust", "RPM"])
+                            elif stand_name == "шпиндель":
+                                csv_writer.writerow(
+                                    ["Speed", "Moment", "Thrust", "RPM"])
                         # Записываем данные
                         if stand_name == "пропеллер":
                             csv_writer.writerow([speed, moment, thrust, rpm])
                         elif stand_name == "момент":
+                            csv_writer.writerow([speed, moment, thrust, rpm])
+                        elif stand_name == "шпиндель":
                             csv_writer.writerow([speed, moment, thrust, rpm])
 
             # Обработка RPM для анализа
@@ -259,7 +271,7 @@ def read_serial():
                                 stand_name = data.split(":")[1].strip().lower()
                                 log_to_console(
                                     f"Название стенда: {stand_name}")
-                                if stand_name in ["пропеллер", "момент"]:
+                                if stand_name in ["пропеллер", "момент", "шпиндель"]:
                                     instruction_label.config(text=f"Стенд: {stand_name.capitalize()}. Теперь можно "
                                                              f"запускать тест.")
                                     start_button.config(state=tk.NORMAL)
@@ -515,7 +527,6 @@ def reset_progress_bar():
     root.after(0, lambda: progress_label.config(text="Прогресс: 0%"))
 
 # Функции для отправки настроек
-
 
 def send_pulse_threshold():
     """Отправка команды для настройки PULSE_THRESHOLD."""
