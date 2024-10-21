@@ -27,6 +27,8 @@ current_speed = None  # Текущая скорость для сбора дан
 previous_speed = None  # Предыдущая скорость для анализа
 stand_name = None     # Название стенда
 
+rpm_received = False
+
 
 # Добавляем в раздел глобальных переменных
 previous_avg_rpm = None  # Среднее RPM предыдущей скорости
@@ -55,6 +57,7 @@ def parse_and_save_to_csv(data):
     global current_rpm, previous_rpm, current_speed, previous_speed
     global current_avg_rpm, previous_avg_rpm, rpm_count
     global test_target_speed, progress_complete
+    global rpm_received
     # global current_moment_var, current_thrust_var, current_rpm_var
 
     if data.startswith("Speed set to:"):
@@ -103,13 +106,8 @@ def parse_and_save_to_csv(data):
                 log_to_console("Неизвестный тип стенда.")
                 return
 
-            # Обновляем отображаемые значения
-            # if moment is not None:
-            #     current_moment_var = tk.StringVar(value="Момент: --")
-            # if thrust is not None:
-            #     current_thrust_var = tk.StringVar(value="Тяга: --")
-            # if rpm is not None:
-            #     current_rpm_var = tk.StringVar(value="RPM: --")
+            if rpm is not None:
+                rpm_received = True  # Получены данные по RPM
 
             # Проверяем, существует ли файл CSV
             write_headers = False
@@ -173,6 +171,10 @@ def parse_and_save_to_csv(data):
                             analyze_rpm()
             # Если уже собрано 5 RPM, дальнейшие значения игнорируются для анализа
             # Но все еще записываются в CSV и лог
+
+            if current_speed == 1300 and not rpm_received:
+                log_to_console("Скорость 1300, но RPM не получены. Остановка теста.")
+                command_queue.put("STOP")
 
         except (IndexError, ValueError) as e:
             log_to_console(f"Ошибка парсинга данных: {data} | Ошибка: {e}")
