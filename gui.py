@@ -266,6 +266,7 @@ def read_serial():
                         if data.startswith("Наименование стенда:"):
                             try:
                                 stand_name = data.split(":")[1].strip().lower()
+                                update_stand_name(stand_name)
                                 log_to_console(
                                     f"Название стенда: {stand_name}")
                                 if stand_name in ["пропеллер", "момент", "шпиндель"]:
@@ -374,11 +375,15 @@ def start_test():
     rpm_count = 0  # Счетчик RPM для текущей скорости
 
     # Получаем названия двигателя и пропеллера
-    engine_name = engine_name_entry.get()
     propeller_name = propeller_name_entry.get()
+    if stand_name != 'шпиндель':
+        engine_name = engine_name_entry.get()
+    else:
+        engine_name = 'shpindel'
 
     # Получаем значение процентов с ползунка
     percent = speed_percent_slider.get()
+
 
     if not engine_name or not propeller_name:
         log_to_console("Введите названия двигателя и пропеллера.")
@@ -474,6 +479,15 @@ def emergency_stop(event):
     """Экстренная остановка по нажатию клавиши."""
     log_to_console("Экстренная остановка: нажата клавиша 'Esc'.")
     stop_test()
+
+def update_stand_name(stand_name):
+    """Обновляет интерфейс в зависимости от выбранного стенда."""
+    if stand_name == "шпиндель":
+        engine_name_entry.config(state=tk.DISABLED)  # Отключаем поле ввода двигателя
+        engine_name_label.config(text="")  # Скрываем метку поля
+    else:
+        engine_name_entry.config(state=tk.NORMAL)  # Включаем поле для других стендов
+        engine_name_label.config(text="Двигатель:")  # Восстанавливаем метку
 
 
 def close_application():
@@ -651,13 +665,18 @@ com_frame.columnconfigure(1, weight=1)
 connect_info_frame = tk.Frame(test_frame)
 connect_info_frame.grid(row=3, column=1, padx=10, pady=10, sticky='e')
 
+def combined_command_for_info():
+    connect_to_arduino()
+    command_queue.put("INFO")
+
+
 connect_button = tk.Button(
-    connect_info_frame, text="Подключение к стенду", command=connect_to_arduino)
+    connect_info_frame, text="Подключение к стенду", command=combined_command_for_info)
 connect_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-info_button = tk.Button(
-    connect_info_frame, text="Информация о стенде", command=lambda: command_queue.put("INFO"))
-info_button.pack(side=tk.LEFT, padx=5, pady=5)
+# info_button = tk.Button(
+#     connect_info_frame, text="Информация о стенде", command=lambda: command_queue.put("INFO"))
+# info_button.pack(side=tk.LEFT, padx=5, pady=5)
 
 
 # Настройки на вкладке "Настройки"
