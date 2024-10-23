@@ -13,6 +13,9 @@ from PIL import Image, ImageTk
 import os
 import datetime  # Для временных меток
 
+
+last_command = None  # Переменная для хранения последней отправленной команды
+
 # Флаги, очереди и блокировки
 stop_event = threading.Event()
 command_queue = queue.Queue()
@@ -24,6 +27,7 @@ count = 0
 previous_rpm = []  # Для хранения значений RPM предыдущей скорости
 current_rpm = []   # Для хранения значений RPM текущей скорости
 current_speed = None  # Текущая скорость для сбора данных
+current_speed_check = 0
 previous_speed = None  # Предыдущая скорость для анализа
 stand_name = None     # Название стенда
 
@@ -54,17 +58,18 @@ log_file_lock = threading.Lock()  # Для синхронизации досту
 
 def parse_and_save_to_csv(data):
     """Парсинг строки и запись в CSV + анализ оборотов."""
+
     global current_rpm, previous_rpm, current_speed, previous_speed
     global current_avg_rpm, previous_avg_rpm, rpm_count
     global test_target_speed, progress_complete
-    global rpm_received
+    global rpm_received, current_speed_check
     # global current_moment_var, current_thrust_var, current_rpm_var
-
     if data.startswith("Speed set to:"):
         parts = data.split(":")
         try:
             speed = int(parts[1].strip())
             # Обновляем прогресс-бар
+            current_speed_check = speed
             update_progress_bar(speed)
         except (IndexError, ValueError) as e:
             log_to_console(f"Ошибка парсинга скорости: {data} | Ошибка: {e}")
@@ -172,13 +177,25 @@ def parse_and_save_to_csv(data):
             # Если уже собрано 5 RPM, дальнейшие значения игнорируются для анализа
             # Но все еще записываются в CSV и лог
 
-            if current_speed == 1300 and not rpm_received:
-                log_to_console("Скорость 1300, но RPM не получены. Остановка теста.")
-                command_queue.put("STOP")
+
 
         except (IndexError, ValueError) as e:
             log_to_console(f"Ошибка парсинга данных: {data} | Ошибка: {e}")
 
+
+def monitor_speed_and_rpm():
+    """Проверяет состояние скорости и RPM, если скорость 1300 и данные по RPM не получены, останавливает тест."""
+    global current_speed_check, rpm_received
+    while not stop_event.is_set():
+        # log_to_console(f"{current_speed_check} {rpm_received}")
+        if current_speed_check >= 1300 and not rpm_received:
+            log_to_console("Скорость 1300, но RPM не получены. Остановка теста.")
+            command_queue.put("STOP")
+        time.sleep(1)  # Проверять каждую секунду
+
+def start_monitoring_thread():
+    monitoring_thread = threading.Thread(target=monitor_speed_and_rpm, daemon=True)
+    monitoring_thread.start()
 
 def analyze_rpm():
     """Анализирует средние RPM для текущей и предыдущей скорости."""
@@ -221,7 +238,7 @@ def log_to_console(message):
 
 def read_serial():
     """Постоянно читает данные из COM-порта и выводит их в консоль. Также логирует данные, если тест запущен."""
-    global log_file, csv_file, stand_name
+    global log_file, csv_file, stand_name, current_speed, current_speed_check, rpm_received, previous_speed
 
     while not stop_event.is_set():
         if ser is not None and ser.is_open:
@@ -258,6 +275,8 @@ def read_serial():
                             previous_rpm.clear()
                             current_rpm.clear()
                             current_speed = None
+                            current_speed_check = 0
+                            rpm_received = False
                             previous_speed = None
                             test_running.clear()  # Останавливаем только тест, программа продолжает работать
                             reset_progress_bar()
@@ -298,11 +317,19 @@ def send_command(command):
 
 def process_commands():
     """Функция для обработки команд от пользователя."""
+    global last_command  # Используем глобальную переменную
     while not stop_event.is_set():
         try:
             command = command_queue.get(timeout=1)
-            # Отладочное сообщение
+            # Проверяем, не совпадает ли новая команда с предыдущей
+            if command == last_command:
+                log_to_console(f"Пропущена повторная команда: {command}")
+                continue  # Если команда такая же, пропускаем её
+
+            # Обновляем последнюю команду и продолжаем обработку
+            last_command = command
             log_to_console(f"Получена команда из очереди: {command}")
+
             if command == "STOP":
                 send_command(command)
                 time.sleep(10)
@@ -368,6 +395,8 @@ def start_test():
     current_rpm = []  # Для хранения значений RPM текущей скорости
     current_speed = None  # Текущая скорость для сбора данных
     previous_speed = None  # Предыдущая скорость для анализа
+
+    start_monitoring_thread()
 
     # Добавляем в раздел глобальных переменных
     previous_avg_rpm = None  # Среднее RPM предыдущей скорости
@@ -670,11 +699,11 @@ def combined_command_for_info():
     command_queue.put("INFO")
 
 
-connect_button = tk.Button(
+connect_button = ttk.Button(
     connect_info_frame, text="Подключение к стенду", command=combined_command_for_info)
 connect_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-# info_button = tk.Button(
+# info_button = ttk.Button(
 #     connect_info_frame, text="Информация о стенде", command=lambda: command_queue.put("INFO"))
 # info_button.pack(side=tk.LEFT, padx=5, pady=5)
 
@@ -685,7 +714,7 @@ pulse_threshold_label = tk.Label(
 pulse_threshold_label.grid(row=0, column=0, padx=10, pady=5, sticky='e')
 pulse_threshold_entry = tk.Entry(settings_frame)
 pulse_threshold_entry.grid(row=0, column=1, padx=10, pady=5, sticky='ew')
-pulse_threshold_button = tk.Button(
+pulse_threshold_button = ttk.Button(
     settings_frame, text="Отправить", command=send_pulse_threshold)
 pulse_threshold_button.grid(row=0, column=2, padx=10, pady=5)
 
@@ -695,7 +724,7 @@ moment_tenz_label = tk.Label(
 moment_tenz_label.grid(row=1, column=0, padx=10, pady=5, sticky='e')
 moment_tenz_entry = tk.Entry(settings_frame)
 moment_tenz_entry.grid(row=1, column=1, padx=10, pady=5, sticky='ew')
-moment_tenz_button = tk.Button(
+moment_tenz_button = ttk.Button(
     settings_frame, text="Отправить", command=send_moment_tenz)
 moment_tenz_button.grid(row=1, column=2, padx=10, pady=5)
 
@@ -705,7 +734,7 @@ thrust_tenz_label = tk.Label(
 thrust_tenz_label.grid(row=2, column=0, padx=10, pady=5, sticky='e')
 thrust_tenz_entry = tk.Entry(settings_frame)
 thrust_tenz_entry.grid(row=2, column=1, padx=10, pady=5, sticky='ew')
-thrust_tenz_button = tk.Button(
+thrust_tenz_button = ttk.Button(
     settings_frame, text="Отправить", command=send_thrust_tenz)
 thrust_tenz_button.grid(row=2, column=2, padx=10, pady=5)
 
@@ -718,19 +747,19 @@ button_frame = tk.Frame(main_frame)
 button_frame.grid(row=5, column=0, columnspan=3,
                   pady=(10, 0), sticky='ew', padx=10)
 
-start_button = tk.Button(button_frame, text="Запустить тест",
+start_button = ttk.Button(button_frame, text="Запустить тест",
                          command=start_test, state=tk.DISABLED)
 start_button.grid(row=0, column=0, padx=10, pady=5)
 
-stop_button = tk.Button(
+stop_button = ttk.Button(
     button_frame, text="Остановить тест", command=stop_test)
 stop_button.grid(row=0, column=1, padx=10, pady=5)
 
-start_freeze_button = tk.Button(
+start_freeze_button = ttk.Button(
     button_frame, text="Начать охлаждение", command=start_freeze)
 start_freeze_button.grid(row=1, column=0, padx=10, pady=5)
 
-stop_freeze_button = tk.Button(
+stop_freeze_button = ttk.Button(
     button_frame, text="Остановить охлаждение", command=stop_test)
 stop_freeze_button.grid(row=1, column=1, padx=10, pady=5)
 
